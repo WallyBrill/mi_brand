@@ -1,12 +1,13 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:math';
 import 'dart:typed_data';
 
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_blue/flutter_blue.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:encrypt/encrypt.dart' as encrypt;
 
 class SearchPage extends StatefulWidget {
   const SearchPage({Key? key}) : super(key: key);
@@ -16,11 +17,10 @@ class SearchPage extends StatefulWidget {
 }
 
 class _SearchPageState extends State<SearchPage> {
-  String _statusTxt = 'statusTxt';
-
   @override
   void initState() {
     super.initState();
+    _requestPermission();
   }
 
   Future<void> _requestPermission() async {
@@ -33,78 +33,13 @@ class _SearchPageState extends State<SearchPage> {
       Permission.bluetoothConnect,
     ].request();
 
-    setState(() {
-      String text = statuses[Permission.location].toString();
-      text += statuses[Permission.locationAlways].toString();
-      text += statuses[Permission.bluetooth].toString();
-      text += statuses[Permission.bluetoothScan].toString();
-      text += statuses[Permission.bluetoothAdvertise].toString();
-      text += statuses[Permission.bluetoothConnect].toString();
-
-      _statusTxt = text;
-    });
-
-    //debugPrint(statuses[Permission.location].toString());
-    //debugPrint(statuses[Permission.locationAlways].toString());
-    //debugPrint(statuses[Permission.bluetooth].toString());
-    //debugPrint(statuses[Permission.bluetoothScan].toString());
-    //debugPrint(statuses[Permission.bluetoothAdvertise].toString());
-    //debugPrint(statuses[Permission.bluetoothConnect].toString());
+    debugPrint(statuses[Permission.location].toString());
+    debugPrint(statuses[Permission.locationAlways].toString());
+    debugPrint(statuses[Permission.bluetooth].toString());
+    debugPrint(statuses[Permission.bluetoothScan].toString());
+    debugPrint(statuses[Permission.bluetoothAdvertise].toString());
+    debugPrint(statuses[Permission.bluetoothConnect].toString());
   }
-
-  FlutterBlue flutterBlue = FlutterBlue.instance;
-
-  Future<void> _searchDevice() async {
-    setState(() {
-      _statusTxt = 'Start scanning';
-    });
-
-    // Start scanning
-    flutterBlue.startScan(timeout: const Duration(seconds: 4));
-
-    // Listen to scan results
-    var subscription = flutterBlue.scanResults.listen((results) {
-      // do something with scan results
-      for (ScanResult r in results) {
-        debugPrint('${r.device.name} found! rssi: ${r.rssi}');
-        setState(() {
-          _statusTxt = '55555555555555';
-        });
-      }
-    });
-
-    // Stop scanning
-    flutterBlue.stopScan();
-  }
-
-  /*@override
-  Widget build1(BuildContext context) {
-    return MaterialApp(
-      home: Scaffold(
-        appBar: AppBar(
-          title: const Text('Home'),
-        ),
-        body: Center(
-            child: Column(
-          children: <Widget>[
-            Text(_statusTxt),
-            FloatingActionButton(
-              onPressed: _requestPermission,
-              tooltip: 'Increment',
-              child: const Icon(Icons.add),
-            ),
-            FloatingActionButton(
-              onPressed: _searchDevice,
-              tooltip: 'Increment',
-              child: const Icon(Icons.read_more),
-            ),
-          ],
-        )),
-      ),
-      debugShowCheckedModeBanner: false,
-    );
-  }
-  */
 
   final ButtonStyle raisedButtonStyle = ElevatedButton.styleFrom(
     foregroundColor: Colors.black87,
@@ -145,7 +80,10 @@ class _SearchPageState extends State<SearchPage> {
                                     BluetoothDeviceState.connected) {
                                   return ElevatedButton(
                                     style: raisedButtonStyle,
-                                    onPressed: () => {},
+                                    onPressed: () => Navigator.of(context).push(
+                                        MaterialPageRoute(
+                                            builder: (context) =>
+                                                DeviceScreen(device: d))),
                                     child: const Text('OPEN'),
                                   );
                                 }
@@ -249,211 +187,6 @@ class ScanResultTile extends StatelessWidget {
   }
 }
 
-class DescriptorTile extends StatelessWidget {
-  final BluetoothDescriptor descriptor;
-  final VoidCallback onReadPressed;
-  final VoidCallback onWritePressed;
-
-  const DescriptorTile(
-      {Key? key,
-      required this.descriptor,
-      required this.onReadPressed,
-      required this.onWritePressed})
-      : super(key: key);
-
-  @override
-  Widget build(BuildContext context) {
-    return ListTile(
-      title: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: <Widget>[
-          const Text('Descriptor'),
-          Text('0x${descriptor.uuid.toString().toUpperCase().substring(4, 8)}',
-              style: Theme.of(context)
-                  .textTheme
-                  .bodyText1
-                  ?.copyWith(color: Theme.of(context).textTheme.caption?.color))
-        ],
-      ),
-      subtitle: StreamBuilder<List<int>>(
-        stream: descriptor.value,
-        initialData: descriptor.lastValue,
-        builder: (c, snapshot) => Text(snapshot.data.toString()),
-      ),
-      trailing: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: <Widget>[
-          IconButton(
-            icon: Icon(
-              Icons.file_download,
-              color: Theme.of(context).iconTheme.color?.withOpacity(0.5),
-            ),
-            onPressed: onReadPressed,
-          ),
-          IconButton(
-            icon: Icon(
-              Icons.file_upload,
-              color: Theme.of(context).iconTheme.color?.withOpacity(0.5),
-            ),
-            onPressed: onWritePressed,
-          )
-        ],
-      ),
-    );
-  }
-}
-
-class AdapterStateTile extends StatelessWidget {
-  const AdapterStateTile({Key? key, required this.state}) : super(key: key);
-
-  final BluetoothState state;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      color: Colors.redAccent,
-      child: ListTile(
-        title: Text(
-          'Bluetooth adapter is ${state.toString().substring(15)}',
-          style: Theme.of(context).primaryTextTheme.subtitle1,
-        ),
-        trailing: Icon(
-          Icons.error,
-          color: Theme.of(context).primaryTextTheme.subtitle1?.color,
-        ),
-      ),
-    );
-  }
-}
-
-class CharacteristicTile extends StatelessWidget {
-  final BluetoothCharacteristic characteristic;
-  final List<DescriptorTile> descriptorTiles;
-  final VoidCallback onReadPressed;
-  final VoidCallback onWritePressed;
-  final VoidCallback onNotificationPressed;
-
-  const CharacteristicTile(
-      {Key? key,
-      required this.characteristic,
-      required this.descriptorTiles,
-      required this.onReadPressed,
-      required this.onWritePressed,
-      required this.onNotificationPressed})
-      : super(key: key);
-
-  @override
-  Widget build(BuildContext context) {
-    return StreamBuilder<List<int>>(
-      stream: characteristic.value,
-      initialData: characteristic.lastValue,
-      builder: (c, snapshot) {
-        final value = snapshot.data;
-        return ExpansionTile(
-          title: ListTile(
-            title: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: <Widget>[
-                const Text('Characteristic'),
-                Text(
-                    '0x${characteristic.uuid.toString().toUpperCase().substring(4, 8)}',
-                    style: Theme.of(context).textTheme.bodyText1?.copyWith(
-                        color: Theme.of(context).textTheme.caption?.color))
-              ],
-            ),
-            subtitle: Text(value.toString()),
-            contentPadding: const EdgeInsets.all(0.0),
-          ),
-          trailing: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: <Widget>[
-              IconButton(
-                icon: Icon(
-                  Icons.arrow_upward,
-                  color: Theme.of(context).iconTheme.color?.withOpacity(0.5),
-                ),
-                onPressed: () => {},
-              ),
-              IconButton(
-                icon: Icon(
-                  Icons.file_download,
-                  color: Theme.of(context).iconTheme.color?.withOpacity(0.5),
-                ),
-                onPressed: onReadPressed,
-              ),
-              IconButton(
-                icon: Icon(Icons.file_upload,
-                    color: Theme.of(context).iconTheme.color?.withOpacity(0.5)),
-                onPressed: onWritePressed,
-              ),
-              IconButton(
-                icon: Icon(
-                    characteristic.isNotifying
-                        ? Icons.sync_disabled
-                        : Icons.sync,
-                    color: Theme.of(context).iconTheme.color?.withOpacity(0.5)),
-                onPressed: onNotificationPressed,
-              )
-            ],
-          ),
-          children: descriptorTiles,
-        );
-      },
-    );
-  }
-}
-
-class ServiceTile2 extends StatelessWidget {
-  final VoidCallback onReadPressed;
-
-  const ServiceTile2({Key? key, required this.onReadPressed}) : super(key: key);
-
-  @override
-  Widget build(BuildContext context) {
-    return ListTile(
-      title: const Text('Service'),
-      subtitle: Text('Test'),
-      onTap: onReadPressed,
-    );
-  }
-}
-
-class ServiceTile extends StatelessWidget {
-  final BluetoothService service;
-  final List<CharacteristicTile> characteristicTiles;
-
-  const ServiceTile(
-      {Key? key, required this.service, required this.characteristicTiles})
-      : super(key: key);
-
-  @override
-  Widget build(BuildContext context) {
-    if (characteristicTiles.isNotEmpty) {
-      return ExpansionTile(
-        title: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: <Widget>[
-            const Text('Service'),
-            Text('0x${service.uuid.toString().toUpperCase().substring(4, 8)}',
-                style: Theme.of(context).textTheme.bodyText1?.copyWith(
-                    color: Theme.of(context).textTheme.caption?.color))
-          ],
-        ),
-        children: characteristicTiles,
-      );
-    } else {
-      return ListTile(
-        title: const Text('Service'),
-        subtitle:
-            Text('0x${service.uuid.toString().toUpperCase().substring(4, 8)}'),
-      );
-    }
-  }
-}
-
 class DeviceScreen extends StatefulWidget {
   const DeviceScreen({Key? key, required this.device}) : super(key: key);
 
@@ -464,64 +197,97 @@ class DeviceScreen extends StatefulWidget {
 }
 
 class _DeviceScreenState extends State<DeviceScreen> {
-  List<int> _getRandomBytes() {
-    final math = Random();
-    return [
-      math.nextInt(255),
-      math.nextInt(255),
-      math.nextInt(255),
-      math.nextInt(255)
-    ];
+  bool _authStatus = false;
+
+  List<int> _authEncrypted(List<int> data) {
+    Uint8List bytes = Uint8List.fromList(
+        [30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45]);
+
+    final key = encrypt.Key(bytes);
+    final encrypter = encrypt.Encrypter(
+        encrypt.AES(key, mode: encrypt.AESMode.ecb, padding: null));
+
+    final iv = encrypt.IV(Uint8List.fromList(data));
+    final encrypted = encrypter.encryptBytes(data, iv: iv);
+
+    List<int> encrypted_ = [3, 8];
+    encrypted_.addAll(encrypted.bytes);
+    return encrypted_;
   }
 
-  int bbb = 0;
+  void _authDevice(BluetoothDevice? device) async {
+    if (device == null) return;
 
-  Widget _buildServiceTiles2(List<BluetoothService> services) {
-    showNotification(services);
-    return ListTile(
-      title: const Text('Service'),
-      subtitle: Text(bbb.toString()),
-      onTap: () async {
-        int bbb1 = await getBatteryLevel(services);
-        setState(() {
-          bbb = bbb1;
-        });
-      },
-    );
-  }
+    List<BluetoothService> services = await device.discoverServices();
 
-  Future<int> getDateTime(List<BluetoothService> services) async {
     final service = services.firstWhere((service) =>
-        service.uuid.toString() == '0000fee0-0000-1000-8000-00805f9b34fb');
+        service.uuid.toString() == '0000fee1-0000-1000-8000-00805f9b34fb');
 
     final characteristic = service.characteristics.firstWhere(
         (characteristic) =>
             characteristic.uuid.toString() ==
-            '00002a2b-0000-1000-8000-00805f9b34fb');
+            '00000009-0000-3512-2118-0009af100700');
 
-    final data = await characteristic.read();
+    final descriptor = characteristic.descriptors.firstWhere((descriptor) =>
+        descriptor.uuid.toString() == '00002902-0000-1000-8000-00805f9b34fb');
 
-    print('getDateTime: $data');
+    await characteristic.setNotifyValue(true);
+    await descriptor.write([1, 0]);
 
-    String year = data[0].toString().substring(0, 2);
-    String month = data[2].toString();
-    String day = data[3].toString();
-    String hours = data[4].toString();
-    String minute = data[5].toString();
-    String secound = data[6].toString();
+    characteristic.value.listen((value) async {
+      if (value.isNotEmpty && value != []) {
+        debugPrint(value.toString());
 
-    print('ํY:20$year');
-    print('M:$month');
-    print('D:$day');
-    print('H:$hours');
-    print('M:$minute');
-    print('S:$secound');
+        if (value[0] == 16 && value[1] == 1 && value[2] == 1) {
+          // auth Req Random Key
+          characteristic.write([2, 8], withoutResponse: true);
+        } else if (value[0] == 16 && value[1] == 2 && value[2] == 1) {
+          // auth Send Encryption Key
+          final data = value.sublist(3);
+          await characteristic.write(_authEncrypted(data),
+              withoutResponse: true);
+        } else if (value[0] == 16 && value[1] == 3 && value[2] == 4) {
+          // Encryption Key Auth Fail, sending new key
+          await characteristic.write([
+            1,
+            8,
+            31,
+            31,
+            32,
+            33,
+            34,
+            35,
+            36,
+            37,
+            38,
+            39,
+            40,
+            41,
+            42,
+            43,
+            44,
+            45
+          ], withoutResponse: true);
+        } else if (value[0] == 16 && value[1] == 3 && value[2] == 1) {
+          // Success Auth Device
+          _authStatus = true;
+          _sendNotify(device, 'vibrate');
+        } else {
+          // Error Auth Device
+        }
+      }
+    });
 
-    //[231, 7, 1, 17, 21, 41, 11, 2, 0, 0, 28]
-    return 0;
+    // auth Send NewKey
+    await characteristic.write(
+        [1, 8, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45],
+        withoutResponse: true);
   }
-  
-  Future<int> showNotification(List<BluetoothService> services) async {
+
+  void _sendNotify(BluetoothDevice? device, String type) async {
+    if (device == null) return;
+
+    List<BluetoothService> services = await device.discoverServices();
     final service = services.firstWhere((service) =>
         service.uuid.toString() == '00001802-0000-1000-8000-00805f9b34fb');
 
@@ -530,67 +296,470 @@ class _DeviceScreenState extends State<DeviceScreen> {
             characteristic.uuid.toString() ==
             '00002a06-0000-1000-8000-00805f9b34fb');
 
-    List<int> _getRandomBytes = [1, 2, 3, 4];
-
-    await characteristic.write(_getRandomBytes);
-
-    print('showNotification');
-    return 0;
+    if (type == 'message') {
+      await characteristic.write([1], withoutResponse: true);
+    } else if (type == 'phone') {
+      await characteristic.write([2], withoutResponse: true);
+    } else if (type == 'vibrate') {
+      await characteristic.write([3], withoutResponse: true);
+    } else if (type == 'off') {
+      await characteristic.write([0], withoutResponse: true);
+    }
   }
 
-  Future<int> getBatteryLevel(List<BluetoothService> services) async {
-    // Find the battery service
-    final batteryService = services.firstWhere((service) =>
-        service.uuid.toString() == '0000fee0-0000-1000-8000-00805f9b34fb');
+  static bool isDeviceRead = false;
 
-    // Find the battery level characteristic
-    final batteryLevelCharacteristic = batteryService.characteristics
-        .firstWhere((characteristic) =>
-            characteristic.uuid.toString() ==
-            '00000006-0000-3512-2118-0009af100700');
+  Future<String> _getDateTime(List<BluetoothService> services) async {
+    while (isDeviceRead) {
+      await Future.delayed(const Duration(milliseconds: 500));
+    }
 
-    // Read the battery level
-    final batteryLevelData = await batteryLevelCharacteristic.read();
-    final batteryLevel = batteryLevelData[1];
+    isDeviceRead = true;
 
-    print('batteryLevel: $batteryLevel');
+    try {
+      String datetime =
+          await Future.delayed(const Duration(milliseconds: 100), () async {
+        final service = services.firstWhere((service) =>
+            service.uuid.toString() == '0000fee0-0000-1000-8000-00805f9b34fb');
 
-    return batteryLevel;
+        final characteristic = service.characteristics.firstWhere(
+            (characteristic) =>
+                characteristic.uuid.toString() ==
+                '00002a2b-0000-1000-8000-00805f9b34fb');
+
+        final data = await characteristic.read();
+
+        String year = data[0].toString().substring(0, 2);
+        String month = data[2].toString();
+        String day = data[3].toString();
+        String hours = data[4].toString();
+        String minute = data[5].toString();
+        String second = data[6].toString();
+
+        return '$day/$month/$year $hours:$minute:$second';
+      });
+
+      debugPrint('DateTime: $datetime');
+      isDeviceRead = false;
+      return datetime;
+    } catch (e) {
+      debugPrint('Error $e');
+      isDeviceRead = false;
+      return "Get DateTime Error Code: 3";
+    }
   }
 
-  List<Widget> _buildServiceTiles(List<BluetoothService> services) {
-    return services
-        .map(
-          (s) => ServiceTile(
-            service: s,
-            characteristicTiles: s.characteristics
-                .map(
-                  (c) => CharacteristicTile(
-                    characteristic: c,
-                    onReadPressed: () => c.read(),
-                    onWritePressed: () async {
-                      await c.write(_getRandomBytes(), withoutResponse: true);
-                      await c.read();
-                    },
-                    onNotificationPressed: () async {
-                      await c.setNotifyValue(!c.isNotifying);
-                      await c.read();
-                    },
-                    descriptorTiles: c.descriptors
-                        .map(
-                          (d) => DescriptorTile(
-                            descriptor: d,
-                            onReadPressed: () => d.read(),
-                            onWritePressed: () => d.write(_getRandomBytes()),
-                          ),
-                        )
-                        .toList(),
-                  ),
-                )
-                .toList(),
+  FutureBuilder _buildDateTime(List<BluetoothService> services) {
+    return FutureBuilder<String>(
+      future: _getDateTime(services),
+      builder: (context, AsyncSnapshot<String> snapshot) {
+        return ListTile(
+          title: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              const Text('DateTime'),
+              (snapshot.connectionState == ConnectionState.waiting)
+                  ? Text('Loading...',
+                      style: Theme.of(context).textTheme.bodyText1?.copyWith(
+                          color: Theme.of(context).textTheme.caption?.color))
+                  : (!snapshot.hasData)
+                      ? const Text('Get DateTime Error Code: 1')
+                      : (snapshot.hasData)
+                          ? Text(snapshot.data.toString(),
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .bodyText1
+                                  ?.copyWith(
+                                      color: Theme.of(context)
+                                          .textTheme
+                                          .caption
+                                          ?.color))
+                          : (snapshot.hasError)
+                              ? Text('${snapshot.error}')
+                              : const Text('Get DateTime Error Code: 2')
+            ],
           ),
-        )
-        .toList();
+          contentPadding: const EdgeInsets.only(left: 15),
+        );
+      },
+    );
+  }
+
+  Future<int> _getBatteryLevel(List<BluetoothService> services) async {
+    while (isDeviceRead) {
+      await Future.delayed(const Duration(milliseconds: 500));
+    }
+
+    isDeviceRead = true;
+
+    try {
+      int batteryLevel =
+          await Future.delayed(const Duration(milliseconds: 100), () async {
+        final service = services.firstWhere((service) =>
+            service.uuid.toString() == '0000fee0-0000-1000-8000-00805f9b34fb');
+
+        final characteristic = service.characteristics.firstWhere(
+            (characteristic) =>
+                characteristic.uuid.toString() ==
+                '00000006-0000-3512-2118-0009af100700');
+
+        final data = await characteristic.read();
+        return data[1];
+      });
+
+      debugPrint('batteryLevel: $batteryLevel');
+      isDeviceRead = false;
+      return batteryLevel;
+    } catch (e) {
+      debugPrint('Error $e');
+      isDeviceRead = false;
+      return 0;
+    }
+  }
+
+  FutureBuilder _buildBatteryLevel(List<BluetoothService> services) {
+    return FutureBuilder<int>(
+      future: _getBatteryLevel(services),
+      builder: (context, AsyncSnapshot<int> snapshot) {
+        return ListTile(
+          title: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              const Text('BatteryLevel'),
+              (snapshot.connectionState == ConnectionState.waiting)
+                  ? Text('Loading...',
+                      style: Theme.of(context).textTheme.bodyText1?.copyWith(
+                          color: Theme.of(context).textTheme.caption?.color))
+                  : (!snapshot.hasData)
+                      ? const Text('Get BatteryLevel Error Code: 1')
+                      : (snapshot.hasData)
+                          ? Text(snapshot.data.toString(),
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .bodyText1
+                                  ?.copyWith(
+                                      color: Theme.of(context)
+                                          .textTheme
+                                          .caption
+                                          ?.color))
+                          : (snapshot.hasError)
+                              ? Text('${snapshot.error}')
+                              : const Text('Get BatteryLevel Error Code: 2')
+            ],
+          ),
+          contentPadding: const EdgeInsets.only(left: 15),
+        );
+      },
+    );
+  }
+
+  int _byteIntToUint16(List<int> data, int offset, Endian endian) {
+    var bytes = Uint8List.fromList(data);
+    return bytes.buffer.asByteData().getUint16(offset, endian);
+  }
+
+  Future<int> _getStep(List<BluetoothService> services) async {
+    while (isDeviceRead) {
+      await Future.delayed(const Duration(milliseconds: 500));
+    }
+
+    isDeviceRead = true;
+
+    try {
+      int step =
+          await Future.delayed(const Duration(milliseconds: 100), () async {
+        final service = services.firstWhere((service) =>
+            service.uuid.toString() == '0000fee0-0000-1000-8000-00805f9b34fb');
+
+        final characteristic = service.characteristics.firstWhere(
+            (characteristic) =>
+                characteristic.uuid.toString() ==
+                '00000007-0000-3512-2118-0009af100700');
+
+        final data = await characteristic.read();
+        return _byteIntToUint16(data, 1, Endian.little);
+      });
+
+      debugPrint('Step: $step');
+      isDeviceRead = false;
+      return step;
+    } catch (e) {
+      debugPrint('Error $e');
+      isDeviceRead = false;
+      return 0;
+    }
+  }
+
+  FutureBuilder _buildStep(List<BluetoothService> services) {
+    return FutureBuilder<int>(
+      future: _getStep(services),
+      builder: (context, AsyncSnapshot<int> snapshot) {
+        return ListTile(
+          title: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              const Text('Step'),
+              (snapshot.connectionState == ConnectionState.waiting)
+                  ? Text('Loading...',
+                      style: Theme.of(context).textTheme.bodyText1?.copyWith(
+                          color: Theme.of(context).textTheme.caption?.color))
+                  : (!snapshot.hasData)
+                      ? const Text('Get Step Error Code: 1')
+                      : (snapshot.hasData)
+                          ? Text(snapshot.data.toString(),
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .bodyText1
+                                  ?.copyWith(
+                                      color: Theme.of(context)
+                                          .textTheme
+                                          .caption
+                                          ?.color))
+                          : (snapshot.hasError)
+                              ? Text('${snapshot.error}')
+                              : const Text('Get Step Error Code: 2')
+            ],
+          ),
+          contentPadding: const EdgeInsets.only(left: 15),
+        );
+      },
+    );
+  }
+
+  Future<int> _getDistance(List<BluetoothService> services) async {
+    while (isDeviceRead) {
+      await Future.delayed(const Duration(milliseconds: 500));
+    }
+
+    isDeviceRead = true;
+
+    try {
+      int distance =
+          await Future.delayed(const Duration(milliseconds: 100), () async {
+        final service = services.firstWhere((service) =>
+            service.uuid.toString() == '0000fee0-0000-1000-8000-00805f9b34fb');
+
+        final characteristic = service.characteristics.firstWhere(
+            (characteristic) =>
+                characteristic.uuid.toString() ==
+                '00000007-0000-3512-2118-0009af100700');
+
+        final data = await characteristic.read();
+        return _byteIntToUint16(data, 5, Endian.little);
+      });
+
+      debugPrint('Distance: $distance');
+      isDeviceRead = false;
+      return distance;
+    } catch (e) {
+      debugPrint('Error $e');
+      isDeviceRead = false;
+      return 0;
+    }
+  }
+
+  FutureBuilder _buildDistance(List<BluetoothService> services) {
+    return FutureBuilder<int>(
+      future: _getDistance(services),
+      builder: (context, AsyncSnapshot<int> snapshot) {
+        return ListTile(
+          title: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              const Text('Distance'),
+              (snapshot.connectionState == ConnectionState.waiting)
+                  ? Text('Loading...',
+                      style: Theme.of(context).textTheme.bodyText1?.copyWith(
+                          color: Theme.of(context).textTheme.caption?.color))
+                  : (!snapshot.hasData)
+                      ? const Text('Get Distance Error Code: 1')
+                      : (snapshot.hasData)
+                          ? Text(snapshot.data.toString(),
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .bodyText1
+                                  ?.copyWith(
+                                      color: Theme.of(context)
+                                          .textTheme
+                                          .caption
+                                          ?.color))
+                          : (snapshot.hasError)
+                              ? Text('${snapshot.error}')
+                              : const Text('Get Distance Error Code: 2')
+            ],
+          ),
+          contentPadding: const EdgeInsets.only(left: 15),
+        );
+      },
+    );
+  }
+
+  Future<int> _getCalories(List<BluetoothService> services) async {
+    while (isDeviceRead) {
+      await Future.delayed(const Duration(milliseconds: 500));
+    }
+
+    isDeviceRead = true;
+    try {
+      int calories =
+          await Future.delayed(const Duration(milliseconds: 100), () async {
+        final service = services.firstWhere((service) =>
+            service.uuid.toString() == '0000fee0-0000-1000-8000-00805f9b34fb');
+
+        final characteristic = service.characteristics.firstWhere(
+            (characteristic) =>
+                characteristic.uuid.toString() ==
+                '00000007-0000-3512-2118-0009af100700');
+
+        final data = await characteristic.read();
+        return _byteIntToUint16(data, 9, Endian.little);
+      });
+
+      debugPrint('Calories: $calories');
+      isDeviceRead = false;
+      return calories;
+    } catch (e) {
+      debugPrint('Error $e');
+      isDeviceRead = false;
+      return 0;
+    }
+  }
+
+  FutureBuilder _buildCalories(List<BluetoothService> services) {
+    return FutureBuilder<int>(
+      future: _getCalories(services),
+      builder: (context, AsyncSnapshot<int> snapshot) {
+        return ListTile(
+          title: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              const Text('Calories'),
+              (snapshot.connectionState == ConnectionState.waiting)
+                  ? Text('Loading...',
+                      style: Theme.of(context).textTheme.bodyText1?.copyWith(
+                          color: Theme.of(context).textTheme.caption?.color))
+                  : (!snapshot.hasData)
+                      ? const Text('Get Calories Error Code: 1')
+                      : (snapshot.hasData)
+                          ? Text(snapshot.data.toString(),
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .bodyText1
+                                  ?.copyWith(
+                                      color: Theme.of(context)
+                                          .textTheme
+                                          .caption
+                                          ?.color))
+                          : (snapshot.hasError)
+                              ? Text('${snapshot.error}')
+                              : const Text('Get Calories Error Code: 2')
+            ],
+          ),
+          contentPadding: const EdgeInsets.only(left: 15),
+        );
+      },
+    );
+  }
+
+  Future<int> _getHeartRate(List<BluetoothService> services) async {
+    while (isDeviceRead) {
+      await Future.delayed(const Duration(milliseconds: 500));
+    }
+
+    isDeviceRead = true;
+
+    try {
+      int heartRate =
+          await Future.delayed(const Duration(milliseconds: 100), () async {
+        final service = services.firstWhere((service) =>
+            service.uuid.toString() == '0000180d-0000-1000-8000-00805f9b34fb');
+
+        final characteristic = service.characteristics.firstWhere(
+            (characteristic) =>
+                characteristic.uuid.toString() ==
+                '00002a39-0000-1000-8000-00805f9b34fb');
+
+        final serviceRead = services.firstWhere((service) =>
+            service.uuid.toString() == '0000180d-0000-1000-8000-00805f9b34fb');
+
+        final characteristicRead = serviceRead.characteristics.firstWhere(
+            (characteristic) =>
+                characteristic.uuid.toString() ==
+                '00002a37-0000-1000-8000-00805f9b34fb');
+
+        await characteristicRead.setNotifyValue(true);
+        await characteristic.write([21, 1, 0]);
+        await characteristic.write([21, 2, 0]);
+        await characteristic.write([21, 2, 1]);
+
+        List<int> data = [];
+
+        var subscription = characteristicRead.value.listen((value) {
+          if (value.isNotEmpty && value != []) {
+            debugPrint(value.toString());
+            data = value;
+          }
+        });
+
+        while (data.isEmpty) {
+          await Future.delayed(const Duration(seconds: 1));
+        }
+
+        subscription.cancel();
+        isDeviceRead = false;
+        return _byteIntToUint16(data, 0, Endian.big);
+      });
+
+      debugPrint('HeartRate: $heartRate');
+
+      return heartRate;
+    } catch (e) {
+      debugPrint('Error $e');
+      isDeviceRead = false;
+      return 0;
+    }
+  }
+
+  FutureBuilder _buildHeartRate(List<BluetoothService> services) {
+    return FutureBuilder<int>(
+      future: _getHeartRate(services),
+      builder: (context, AsyncSnapshot<int> snapshot) {
+        return ListTile(
+          title: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              const Text('HeartRate'),
+              (snapshot.connectionState == ConnectionState.waiting)
+                  ? Text('Loading...',
+                      style: Theme.of(context).textTheme.bodyText1?.copyWith(
+                          color: Theme.of(context).textTheme.caption?.color))
+                  : (!snapshot.hasData)
+                      ? const Text('Get HeartRate Error Code: 1')
+                      : (snapshot.hasData)
+                          ? Text(snapshot.data.toString(),
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .bodyText1
+                                  ?.copyWith(
+                                      color: Theme.of(context)
+                                          .textTheme
+                                          .caption
+                                          ?.color))
+                          : (snapshot.hasError)
+                              ? Text('${snapshot.error}')
+                              : const Text('Get HeartRate Error Code: 2')
+            ],
+          ),
+          contentPadding: const EdgeInsets.only(left: 15),
+        );
+      },
+    );
   }
 
   @override
@@ -660,7 +829,9 @@ class _DeviceScreenState extends State<DeviceScreen> {
                     children: <Widget>[
                       IconButton(
                         icon: const Icon(Icons.refresh),
-                        onPressed: () => widget.device.discoverServices(),
+                        onPressed: () {
+                          widget.device.discoverServices();
+                        },
                       ),
                       const IconButton(
                         icon: SizedBox(
@@ -677,26 +848,32 @@ class _DeviceScreenState extends State<DeviceScreen> {
                 ),
               ),
             ),
-            StreamBuilder<int>(
-              stream: widget.device.mtu,
-              initialData: 0,
-              builder: (c, snapshot) => ListTile(
-                title: const Text('MTU Size'),
-                subtitle: Text('${snapshot.data} bytes'),
-                trailing: IconButton(
-                  icon: const Icon(Icons.edit),
-                  onPressed: () => widget.device.requestMtu(223),
-                ),
+            ListTile(
+              title: const Text('Auth Device Status'),
+              subtitle: Text('$_authStatus'),
+              trailing: IconButton(
+                icon: _authStatus == true
+                    ? const Icon(Icons.verified_user)
+                    : const Icon(Icons.add),
+                onPressed: () => _authDevice(widget.device),
               ),
             ),
             StreamBuilder<List<BluetoothService>>(
               stream: widget.device.services,
               initialData: const [],
               builder: (c, snapshot) {
-                return Column(
-                  //children: [_buildServiceTiles2(snapshot.data!)],
-                  children: _buildServiceTiles(snapshot.data!),
-                );
+                return _authStatus == true
+                    ? Column(
+                        children: [
+                          _buildDateTime(snapshot.data!),
+                          _buildBatteryLevel(snapshot.data!),
+                          _buildStep(snapshot.data!),
+                          _buildDistance(snapshot.data!),
+                          _buildCalories(snapshot.data!),
+                          _buildHeartRate(snapshot.data!),
+                        ],
+                      )
+                    : const SizedBox.shrink();
               },
             ),
           ],
