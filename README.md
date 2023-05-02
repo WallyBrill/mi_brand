@@ -1,4 +1,4 @@
-# mi brand flutter support android/ios
+# mi band flutter support android/ios
 
 ## Note
 This is a sample script, made by wally brill.
